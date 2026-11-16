@@ -2,7 +2,9 @@
 const base = () => (process.env.SUPABASE_URL || "").replace(/\/+$/, "");
 const key = () => process.env.SUPABASE_SERVICE_KEY || "";
 const org = () => process.env.BSG_ORG || "bsg";
-const hdr = (extra) => ({ apikey: key(), Authorization: "Bearer " + key(), "Content-Type": "application/json", ...(extra || {}) });
+// Old-style keys (service_role, start with "eyJ") are sent as apikey + Bearer; new-style keys (sb_secret_...) only as apikey.
+const auth = () => (/^eyJ/.test(key()) ? { apikey: key(), Authorization: "Bearer " + key() } : { apikey: key() });
+const hdr = (extra) => ({ ...auth(), "Content-Type": "application/json", ...(extra || {}) });
 const configured = () => !!(base() && key());
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
@@ -43,4 +45,4 @@ async function snapshot(data, version) {
   } catch (e) { /* history is best effort */ }
 }
 const body = (req) => (typeof req.body === "string" ? JSON.parse(req.body || "{}") : req.body || {});
-module.exports = { base, key, org, hdr, configured, sleep, load, userOk, save, snapshot, body };
+module.exports = { base, key, org, auth, hdr, configured, sleep, load, userOk, save, snapshot, body };

@@ -11,7 +11,7 @@ module.exports = async (req, res) => {
   try {
     const row = await L.load();
     if (!row || !L.userOk(row.data, b.uid, b.pin)) { await L.sleep(600); return res.status(401).json({ error: "Wrong PIN" }); }
-    const svc = { apikey: L.key(), Authorization: "Bearer " + L.key() };
+    const svc = L.auth();
     if (b.op === "upload") {
       if (!b.b64 || b.b64.length > 1500000) return res.status(413).json({ error: "Photo too large" });
       const up = await fetch(`${L.base()}/storage/v1/object/${BUCKET}/${name}`, { method: "POST", headers: { ...svc, "Content-Type": "image/jpeg", "x-upsert": "true" }, body: Buffer.from(b.b64, "base64") });
