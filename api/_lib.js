@@ -1,5 +1,5 @@
 // Shared helpers for the Vercel functions. Supabase keys come from Vercel environment variables only.
-const base = () => (process.env.SUPABASE_URL || "").replace(/\/+$/, "");
+const base = () => { const u = (process.env.SUPABASE_URL || "").trim(); try { return new URL(u).origin; } catch (e) { return u.replace(/\/+$/, ""); } };
 const key = () => process.env.SUPABASE_SERVICE_KEY || "";
 const org = () => process.env.BSG_ORG || "bsg";
 // Old-style keys (service_role, start with "eyJ") are sent as apikey + Bearer; new-style keys (sb_secret_...) only as apikey.
@@ -10,7 +10,7 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
 async function load() {
   const r = await fetch(`${base()}/rest/v1/bsg_state?org=eq.${encodeURIComponent(org())}&select=data,version`, { headers: hdr() });
-  if (!r.ok) throw new Error("Database read failed");
+  if (!r.ok) throw new Error("Database read failed (" + r.status + "): " + (await r.text().catch(() => "")).slice(0, 160));
   const j = await r.json();
   return j[0] || null;
 }
@@ -22,14 +22,14 @@ function userOk(data, uid, pin) {
 async function save(row, data, version) {
   if (!row) {
     const r = await fetch(`${base()}/rest/v1/bsg_state`, { method: "POST", headers: hdr({ Prefer: "resolution=ignore-duplicates,return=representation" }), body: JSON.stringify({ org: org(), data, version: 1 }) });
-    if (!r.ok) throw new Error("Database write failed");
+    if (!r.ok) throw new Error("Database write failed (" + r.status + "): " + (await r.text().catch(() => "")).slice(0, 160));
     const j = await r.json();
     return j.length ? 1 : null;
   }
   const r = await fetch(`${base()}/rest/v1/bsg_state?org=eq.${encodeURIComponent(org())}&version=eq.${version}`, {
     method: "PATCH", headers: hdr({ Prefer: "return=representation" }), body: JSON.stringify({ data, version: version + 1, updated_at: new Date().toISOString() }),
   });
-  if (!r.ok) throw new Error("Database write failed");
+  if (!r.ok) throw new Error("Database write failed (" + r.status + "): " + (await r.text().catch(() => "")).slice(0, 160));
   const j = await r.json();
   return j.length ? version + 1 : null; // null = someone else saved first
 }
